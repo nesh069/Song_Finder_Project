@@ -67,3 +67,27 @@ searchBtn.addEventListener('click', () => {
   if (query) fetchSongs(query)
 })
 
+const filterBtns = document.querySelectorAll('.filter-btn')
+let activeGenre = 'all'
+
+filterBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    filterBtns.forEach(b => b.classList.remove('active'))
+    btn.classList.add('active')
+    activeGenre = btn.dataset.genre
+    applyFilters()
+  })
+})
+
+function applyFilters() {
+  let filtered = [...allSongs]
+
+  if (activeGenre !== 'all') {
+    filtered = filtered.filter(song =>
+      song.genre.toLowerCase() === activeGenre.toLowerCase()
+    )
+  }
+
+  renderCards(filtered)
+}
+
