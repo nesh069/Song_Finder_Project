@@ -33,3 +33,29 @@ test('sortByPopularity sorts songs from highest to lowest', () => {
   expect(result[0].popularity).toBe(98)
   expect(result[3].popularity).toBe(88)
 })
+
+test('filterByGenre returns empty array when no songs match', () => {
+  const result = filterByGenre(mockSongs, 'jazz')
+  expect(result).toHaveLength(0)
+})
+
+test('filterByTitle returns empty array for unmatched query', () => {
+  const result = filterByTitle(mockSongs, 'xyzabc')
+  expect(result).toHaveLength(0)
+})
+
+test('filterByTitle handles empty string and returns all songs', () => {
+  const result = filterByTitle(mockSongs, '')
+  expect(result).toHaveLength(4)
+})
+
+test('sortByPopularity does not mutate the original array', () => {
+  const original = [...mockSongs]
+  sortByPopularity(mockSongs)
+  expect(mockSongs).toEqual(original)
+})
+
+test('filterByGenre is case insensitive', () => {
+  const result = filterByGenre(mockSongs, 'POP')
+  expect(result).toHaveLength(1)
+})
