@@ -51,3 +51,19 @@ function renderCards(songs) {
 }
 
 fetchSongs()
+
+const searchInput = document.getElementById('search-input')
+const searchBtn = document.getElementById('search-btn')
+
+searchInput.addEventListener('input', () => {
+  const query = searchInput.value.trim()
+  if (query.length > 2) {
+    fetchSongs(query)
+  }
+})
+
+searchBtn.addEventListener('click', () => {
+  const query = searchInput.value.trim()
+  if (query) fetchSongs(query)
+})
+
