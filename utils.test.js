@@ -1,4 +1,4 @@
-const { filterByGenre, filterByTitle, sortByPopularity } = require('../utils')
+const { filterByGenre, filterByTitle, sortByPopularity } = require('./utils')
 
 const mockSongs = [
   { title: 'Blinding Lights', artist: 'The Weeknd', genre: 'pop', popularity: 98 },
