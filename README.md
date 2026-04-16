@@ -37,7 +37,7 @@ A website that helps users search for songs by title, artist, genre or popularit
 
 ## Live Site
 
-[https://your-username.github.io/music-search](https://your-username.github.io/music-search)
+[https://nesh069.github.io/Song_Finder_Project](https://nesh069.github.io/Song_Finder_Project)
 
 ---
 
