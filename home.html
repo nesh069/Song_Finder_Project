@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Music Search</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <nav class="navbar">
+    <div class="navbar__logo">MusicFinder</div>
+    <ul class="navbar__links">
+      <li><a href="#">Home</a></li>
+      <li><a href="#">Genres</a></li>
+      <li><a href="#">Top Charts</a></li>
+      <li><a href="#">About</a></li>
+    </ul>
+  </nav>
+
+  <header class="hero">
+    <h1 class="hero__title">Find Your Next Favourite Song</h1>
+    <p class="hero__subtitle">Search by title, artist, genre or popularity</p>
+  </header>
+
+  <main class="container" id="main">
+  </main>
+
+  <script src="script.js"></script>
+  <section class="search-section">
+    <div class="search-bar">
+      <input
+        type="text"
+        id="search-input"
+        class="search-bar__input"
+        placeholder="Search songs or artists..."
+      />
+      <button class="search-bar__btn" id="search-btn">Search</button>
+    </div>
+
+    <div class="filters" id="filters">
+      <button class="filter-btn active" data-genre="all">All</button>
+      <button class="filter-btn" data-genre="pop">Pop</button>
+      <button class="filter-btn" data-genre="hip-hop">Hip-Hop</button>
+      <button class="filter-btn" data-genre="rock">Rock</button>
+      <button class="filter-btn" data-genre="rnb">R&B</button>
+      <button class="filter-btn" data-genre="afrobeats">Afrobeats</button>
+    </div>
+
+    <div class="sort-bar">
+      <label for="sort-select" class="sort-bar__label">Sort by:</label>
+      <select id="sort-select" class="sort-bar__select">
+        <option value="default">Default</option>
+        <option value="popularity">Popularity</option>
+      </select>
+    </div>
+  </section>
+
+</body>
+</html>
