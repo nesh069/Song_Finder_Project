@@ -249,3 +249,12 @@ body {
   }
 }
 
+.results__empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 3rem 0;
+  font-family: var(--font-body);
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
