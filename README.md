@@ -35,6 +35,12 @@ A website that helps users search for songs by title, artist, genre or popularit
 
 ---
 
+## Live Site
+
+[https://your-username.github.io/music-search](https://your-username.github.io/music-search)
+
+---
+
 ## How to run it
 
 Just open `index.html` in your browser. No setup needed.
