@@ -4,7 +4,10 @@ const BASE_URL = 'https://ws.audioscrobbler.com/2.0/'
 let allSongs = []
 
 async function fetchSongs(query = 'love') {
+  const spinner = document.getElementById('spinner')
   const url = `${BASE_URL}?method=track.search&track=${query}&api_key=${API_KEY}&format=json&limit=20`
+
+  spinner.classList.remove('hidden')
 
   try {
     const response = await fetch(url)
@@ -21,6 +24,8 @@ async function fetchSongs(query = 'love') {
     renderCards(allSongs)
   } catch (error) {
     console.error('Failed to fetch songs:', error)
+  } finally {
+    spinner.classList.add('hidden')
   }
 }
 
