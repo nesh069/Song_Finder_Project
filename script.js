@@ -88,6 +88,16 @@ function applyFilters() {
     )
   }
 
+  if (sortSelect.value === 'popularity') {
+    filtered = filtered.sort((a, b) => b.popularity - a.popularity)
+  }
+
   renderCards(filtered)
 }
+
+const sortSelect = document.getElementById('sort-select')
+
+sortSelect.addEventListener('change', () => {
+  applyFilters()
+})
 
