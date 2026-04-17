@@ -4,7 +4,6 @@ const LASTFM_URL = 'https://ws.audioscrobbler.com/2.0/'
 let allSongs = []
 let activeGenre = 'all'
 
-// Move delay to top (best practice)
 function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms))
 }
@@ -18,7 +17,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const resultsGrid = document.getElementById('results-grid')
   const emptyMsg = document.getElementById('empty-msg')
 
-  fetchSongs('love', spinner, resultsGrid, emptyMsg, sortSelect)
+  // Load popular songs on initial load (empty query = chart top tracks)
+  fetchSongs('', spinner, resultsGrid, emptyMsg, sortSelect, true)
 
   if (searchInput) {
     searchInput.addEventListener('input', () => {
@@ -26,7 +26,8 @@ document.addEventListener('DOMContentLoaded', () => {
       if (query.length > 2) {
         fetchSongs(query, spinner, resultsGrid, emptyMsg, sortSelect)
       } else if (query.length === 0) {
-        fetchSongs('love', spinner, resultsGrid, emptyMsg, sortSelect)
+        // When search is cleared, go back to popular songs
+        fetchSongs('', spinner, resultsGrid, emptyMsg, sortSelect, true)
       }
     })
   }
@@ -34,7 +35,12 @@ document.addEventListener('DOMContentLoaded', () => {
   if (searchBtn) {
     searchBtn.addEventListener('click', () => {
       const query = searchInput.value.trim()
-      if (query) fetchSongs(query, spinner, resultsGrid, emptyMsg, sortSelect)
+      if (query) {
+        fetchSongs(query, spinner, resultsGrid, emptyMsg, sortSelect)
+      } else {
+        // If search is empty, show popular songs
+        fetchSongs('', spinner, resultsGrid, emptyMsg, sortSelect, true)
+      }
     })
   }
 
@@ -56,8 +62,16 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 })
 
-async function fetchSongs(query, spinner, resultsGrid, emptyMsg, sortSelect) {
-  const url = `${LASTFM_URL}?method=track.search&track=${encodeURIComponent(query)}&api_key=${API_KEY}&format=json&limit=20`
+async function fetchSongs(query, spinner, resultsGrid, emptyMsg, sortSelect, usePopular = false) {
+  let url
+  
+  if (usePopular || !query) {
+    // Fetch popular/top tracks when no search query
+    url = `${LASTFM_URL}?method=chart.getTopTracks&api_key=${API_KEY}&format=json&limit=20`
+  } else {
+    // Search for specific query
+    url = `${LASTFM_URL}?method=track.search&track=${encodeURIComponent(query)}&api_key=${API_KEY}&format=json&limit=20`
+  }
 
   if (spinner) spinner.classList.remove('hidden')
   if (emptyMsg) emptyMsg.classList.add('hidden')
@@ -66,22 +80,39 @@ async function fetchSongs(query, spinner, resultsGrid, emptyMsg, sortSelect) {
     const response = await fetch(url)
     const data = await response.json()
 
-    if (!data.results?.trackmatches?.track) {
-      allSongs = []
-      renderCards([], resultsGrid, emptyMsg)
-      return
+    let tracksArray = []
+    
+    if (usePopular || !query) {
+      // chart.getTopTracks returns data differently
+      if (!data.tracks?.track) {
+        allSongs = []
+        renderCards([], resultsGrid, emptyMsg)
+        return
+      }
+      tracksArray = Array.isArray(data.tracks.track) ? data.tracks.track : [data.tracks.track]
+    } else {
+      // track.search returns data differently
+      if (!data.results?.trackmatches?.track) {
+        allSongs = []
+        renderCards([], resultsGrid, emptyMsg)
+        return
+      }
+      const tracks = data.results.trackmatches.track
+      tracksArray = Array.isArray(tracks) ? tracks : [tracks]
     }
-
-    const tracks = data.results.trackmatches.track
-    const tracksArray = Array.isArray(tracks) ? tracks : [tracks]
 
     // Step 1 — render songs immediately with 'loading' genre
     allSongs = tracksArray.map((track, index) => ({
       title: track.name,
       artist: typeof track.artist === 'string' ? track.artist : track.artist.name,
       genre: 'loading...',
-      popularity: Math.floor(parseInt(track.listeners || 0) / 1000) || index + 1
+      popularity: Math.floor(parseInt(track.listeners || track.playcount || 0) / 1000) || index + 1
     }))
+
+    // Auto-sort by popularity if showing popular songs
+    if (usePopular || !query) {
+      allSongs.sort((a, b) => b.popularity - a.popularity)
+    }
 
     renderCards(allSongs, resultsGrid, emptyMsg)
 
@@ -97,14 +128,12 @@ async function fetchSongs(query, spinner, resultsGrid, emptyMsg, sortSelect) {
       const genre = await fetchGenre(allSongs[i].artist, allSongs[i].title)
       allSongs[i].genre = genre
 
-      // Update just that card's genre label without re-rendering everything
       const cards = resultsGrid.querySelectorAll('.card')
       if (cards[i]) {
         const genreEl = cards[i].querySelector('.card__genre')
         if (genreEl) genreEl.textContent = genre
       }
 
-      // If filter is active and this song doesn't match, hide it
       if (activeGenre !== 'all' && genre !== 'loading...') {
         const genreMatch = genre.toLowerCase() === activeGenre.toLowerCase()
         if (cards[i]) {
@@ -112,11 +141,9 @@ async function fetchSongs(query, spinner, resultsGrid, emptyMsg, sortSelect) {
         }
       }
 
-      // Longer delay to avoid rate limit (300ms instead of 100ms)
       await delay(300)
     }
 
-    // Final re-filter to ensure correct display
     if (activeGenre !== 'all') {
       applyFilters(sortSelect, resultsGrid, emptyMsg)
     }
@@ -136,7 +163,6 @@ async function fetchGenre(artist, title) {
     
     const response = await fetch(url)
     
-    // Check for rate limiting
     if (response.status === 429) {
       console.warn('Rate limit hit for:', artist, '-', title)
       return 'other'
@@ -148,7 +174,6 @@ async function fetchGenre(artist, title) {
     
     const data = await response.json()
 
-    // Check if track exists
     if (!data.track) {
       return 'other'
     }
@@ -215,6 +240,5 @@ function renderCards(songs, resultsGrid, emptyMsg) {
     `
     resultsGrid.appendChild(card)
   })
-}
 }
 
