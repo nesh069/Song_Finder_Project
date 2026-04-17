@@ -1,244 +1,306 @@
-const API_KEY = '0e68bf1b61df246bcfd6b8bac456cf13'
-const LASTFM_URL = 'https://ws.audioscrobbler.com/2.0/'
+const API_KEY = '0e68bf1b61df246bcfd6b8bac456cf13';
+const LASTFM_URL = 'https://ws.audioscrobbler.com/2.0/';
+const DEEZER_URL = 'https://api.deezer.com/';
+// This proxy helps bypass CORS issues for audio previews and API calls
+const PROXY = 'https://corsproxy.io/?';
 
-let allSongs = []
-let activeGenre = 'all'
+let allSongs = [];
+let activeGenre = 'all';
+let currentAudio = null;
+
+// Deezer Genre IDs for regional music
+const REGIONAL_GENRES = {
+  'african': 2,
+  'asian': 16,
+  'latin': 197,
+  'brazilian': 75,
+  'indian': 81,
+  'reggae': 144,
+  'pop': 132,
+  'hip-hop': 116,
+  'rock': 152,
+  'rnb': 165
+};
 
 function delay(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms))
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  const searchInput = document.getElementById('search-input')
-  const searchBtn = document.getElementById('search-btn')
-  const sortSelect = document.getElementById('sort-select')
-  const filterBtns = document.querySelectorAll('.filter-btn')
-  const spinner = document.getElementById('spinner')
-  const resultsGrid = document.getElementById('results-grid')
-  const emptyMsg = document.getElementById('empty-msg')
+  const searchInput = document.getElementById('search-input');
+  const searchBtn = document.getElementById('search-btn');
+  const sortSelect = document.getElementById('sort-select');
+  const filterBtns = document.querySelectorAll('.filter-btn');
+  const spinner = document.getElementById('spinner');
+  const resultsGrid = document.getElementById('results-grid');
+  const emptyMsg = document.getElementById('empty-msg');
+  const regionSelect = document.getElementById('region-select');
 
-  // Load popular songs on initial load (empty query = chart top tracks)
-  fetchSongs('', spinner, resultsGrid, emptyMsg, sortSelect, true)
+  // Load popular songs on start
+  fetchSongs('', spinner, resultsGrid, emptyMsg, sortSelect, true);
 
   if (searchInput) {
     searchInput.addEventListener('input', () => {
-      const query = searchInput.value.trim()
+      const query = searchInput.value.trim();
       if (query.length > 2) {
-        fetchSongs(query, spinner, resultsGrid, emptyMsg, sortSelect)
+        fetchSongs(query, spinner, resultsGrid, emptyMsg, sortSelect);
       } else if (query.length === 0) {
-        // When search is cleared, go back to popular songs
-        fetchSongs('', spinner, resultsGrid, emptyMsg, sortSelect, true)
+        fetchSongs('', spinner, resultsGrid, emptyMsg, sortSelect, true);
       }
-    })
+    });
   }
 
   if (searchBtn) {
     searchBtn.addEventListener('click', () => {
-      const query = searchInput.value.trim()
-      if (query) {
-        fetchSongs(query, spinner, resultsGrid, emptyMsg, sortSelect)
-      } else {
-        // If search is empty, show popular songs
-        fetchSongs('', spinner, resultsGrid, emptyMsg, sortSelect, true)
-      }
-    })
+      const query = searchInput.value.trim();
+      fetchSongs(query || '', spinner, resultsGrid, emptyMsg, sortSelect, !query);
+    });
   }
 
-  if (filterBtns) {
-    filterBtns.forEach(btn => {
-      btn.addEventListener('click', () => {
-        filterBtns.forEach(b => b.classList.remove('active'))
-        btn.classList.add('active')
-        activeGenre = btn.dataset.genre
-        applyFilters(sortSelect, resultsGrid, emptyMsg)
-      })
-    })
+  if (regionSelect) {
+    regionSelect.addEventListener('change', () => {
+      const region = regionSelect.value;
+      if (region) {
+        fetchByRegion(region, spinner, resultsGrid, emptyMsg, sortSelect);
+      } else {
+        fetchSongs('', spinner, resultsGrid, emptyMsg, sortSelect, true);
+      }
+    });
   }
+
+  filterBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      filterBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      activeGenre = btn.dataset.genre;
+      applyFilters(sortSelect, resultsGrid, emptyMsg);
+    });
+  });
 
   if (sortSelect) {
     sortSelect.addEventListener('change', () => {
-      applyFilters(sortSelect, resultsGrid, emptyMsg)
-    })
+      applyFilters(sortSelect, resultsGrid, emptyMsg);
+    });
   }
-})
 
-async function fetchSongs(query, spinner, resultsGrid, emptyMsg, sortSelect, usePopular = false) {
-  let url
+  // Close modal when clicking outside
+  window.onclick = (event) => {
+    const modal = document.getElementById('song-modal');
+    if (event.target == modal) {
+      closeModal();
+    }
+  };
+});
+
+async function fetchByRegion(region, spinner, resultsGrid, emptyMsg, sortSelect) {
+  const genreId = REGIONAL_GENRES[region];
+  if (!genreId) return;
+
+  // Use proxy for Deezer API call
+  const url = `${PROXY}${encodeURIComponent(`${DEEZER_URL}editorial/${genreId}/charts`)}`;
   
-  if (usePopular || !query) {
-    // Fetch popular/top tracks when no search query
-    url = `${LASTFM_URL}?method=chart.getTopTracks&api_key=${API_KEY}&format=json&limit=20`
-  } else {
-    // Search for specific query
-    url = `${LASTFM_URL}?method=track.search&track=${encodeURIComponent(query)}&api_key=${API_KEY}&format=json&limit=20`
-  }
-
-  if (spinner) spinner.classList.remove('hidden')
-  if (emptyMsg) emptyMsg.classList.add('hidden')
+  if (spinner) spinner.classList.remove('hidden');
+  if (emptyMsg) emptyMsg.classList.add('hidden');
 
   try {
-    const response = await fetch(url)
-    const data = await response.json()
+    const response = await fetch(url);
+    const data = await response.json();
 
-    let tracksArray = []
-    
-    if (usePopular || !query) {
-      // chart.getTopTracks returns data differently
-      if (!data.tracks?.track) {
-        allSongs = []
-        renderCards([], resultsGrid, emptyMsg)
-        return
-      }
-      tracksArray = Array.isArray(data.tracks.track) ? data.tracks.track : [data.tracks.track]
-    } else {
-      // track.search returns data differently
-      if (!data.results?.trackmatches?.track) {
-        allSongs = []
-        renderCards([], resultsGrid, emptyMsg)
-        return
-      }
-      const tracks = data.results.trackmatches.track
-      tracksArray = Array.isArray(tracks) ? tracks : [tracks]
+    if (!data.tracks?.data) {
+      allSongs = [];
+      renderCards([], resultsGrid, emptyMsg);
+      return;
     }
 
-    // Step 1 — render songs immediately with 'loading' genre
-    allSongs = tracksArray.map((track, index) => ({
+    allSongs = data.tracks.data.map((track, index) => ({
+      title: track.title,
+      artist: track.artist.name,
+      genre: region === 'african' ? 'afrobeats' : 'pop', 
+      popularity: Math.floor(track.rank / 1000) || index + 1,
+      previewUrl: track.preview,
+      albumCover: track.album?.cover_medium,
+      duration: track.duration,
+      albumName: track.album?.title
+    }));
+
+    renderCards(allSongs, resultsGrid, emptyMsg);
+  } catch (error) {
+    console.error('Regional fetch error:', error);
+  } finally {
+    if (spinner) spinner.classList.add('hidden');
+  }
+}
+
+async function fetchSongs(query, spinner, resultsGrid, emptyMsg, sortSelect, usePopular = false) {
+  let url = usePopular 
+    ? `${LASTFM_URL}?method=chart.getTopTracks&api_key=${API_KEY}&format=json&limit=20`
+    : `${LASTFM_URL}?method=track.search&track=${encodeURIComponent(query)}&api_key=${API_KEY}&format=json&limit=20`;
+
+  if (spinner) spinner.classList.remove('hidden');
+  
+  try {
+    const response = await fetch(url);
+    const data = await response.json();
+    let tracksArray = usePopular ? data.tracks?.track : data.results?.trackmatches?.track;
+
+    if (!tracksArray) {
+      allSongs = [];
+      renderCards([], resultsGrid, emptyMsg);
+      return;
+    }
+
+    allSongs = (Array.isArray(tracksArray) ? tracksArray : [tracksArray]).map((track, index) => ({
       title: track.name,
       artist: typeof track.artist === 'string' ? track.artist : track.artist.name,
       genre: 'loading...',
-      popularity: Math.floor(parseInt(track.listeners || track.playcount || 0) / 1000) || index + 1
-    }))
+      popularity: Math.floor(parseInt(track.listeners || 0) / 1000) || index + 1,
+      previewUrl: null
+    }));
 
-    // Auto-sort by popularity if showing popular songs
-    if (usePopular || !query) {
-      allSongs.sort((a, b) => b.popularity - a.popularity)
-    }
+    renderCards(allSongs, resultsGrid, emptyMsg);
 
-    renderCards(allSongs, resultsGrid, emptyMsg)
-
-    // Step 2 — fetch genres one at a time in the background
-    let rateLimitHit = false
-    
     for (let i = 0; i < allSongs.length; i++) {
-      if (rateLimitHit) {
-        allSongs[i].genre = 'other'
-        continue
+      const deezerData = await fetchDeezerData(allSongs[i].artist, allSongs[i].title);
+      if (deezerData) {
+        allSongs[i] = { ...allSongs[i], ...deezerData };
+        updateCard(i, allSongs[i], resultsGrid);
       }
-      
-      const genre = await fetchGenre(allSongs[i].artist, allSongs[i].title)
-      allSongs[i].genre = genre
-
-      const cards = resultsGrid.querySelectorAll('.card')
-      if (cards[i]) {
-        const genreEl = cards[i].querySelector('.card__genre')
-        if (genreEl) genreEl.textContent = genre
-      }
-
-      if (activeGenre !== 'all' && genre !== 'loading...') {
-        const genreMatch = genre.toLowerCase() === activeGenre.toLowerCase()
-        if (cards[i]) {
-          cards[i].style.display = genreMatch ? 'flex' : 'none'
-        }
-      }
-
-      await delay(300)
+      await delay(200); // Prevent hitting rate limits
     }
-
-    if (activeGenre !== 'all') {
-      applyFilters(sortSelect, resultsGrid, emptyMsg)
-    }
-
   } catch (error) {
-    console.error('Failed to fetch songs:', error)
-    allSongs = []
-    renderCards([], resultsGrid, emptyMsg)
+    console.error('Fetch error:', error);
   } finally {
-    if (spinner) spinner.classList.add('hidden')
+    if (spinner) spinner.classList.add('hidden');
   }
 }
 
-async function fetchGenre(artist, title) {
+async function fetchDeezerData(artist, title) {
   try {
-    const url = `${LASTFM_URL}?method=track.getInfo&track=${encodeURIComponent(title)}&artist=${encodeURIComponent(artist)}&api_key=${API_KEY}&format=json`
-    
-    const response = await fetch(url)
-    
-    if (response.status === 429) {
-      console.warn('Rate limit hit for:', artist, '-', title)
-      return 'other'
+    const url = `${PROXY}${encodeURIComponent(`${DEEZER_URL}search?q=${artist} ${title}&limit=1`)}`;
+    const response = await fetch(url);
+    const data = await response.json();
+    if (data.data && data.data[0]) {
+      const track = data.data[0];
+      return {
+        previewUrl: track.preview,
+        albumCover: track.album?.cover_medium,
+        duration: track.duration,
+        albumName: track.album?.title
+      };
     }
-    
-    if (!response.ok) {
-      return 'other'
-    }
-    
-    const data = await response.json()
+  } catch (e) { return null; }
+}
 
-    if (!data.track) {
-      return 'other'
-    }
+function playPreview(url, button) {
+  // If clicking a playing song, pause it
+  if (currentAudio && currentAudio.src === url && !currentAudio.paused) {
+    currentAudio.pause();
+    button.innerHTML = '▶ Play Preview';
+    return;
+  }
 
-    const tags = data.track.toptags?.tag
-    if (!tags || tags.length === 0) {
-      return 'other'
-    }
+  // Stop any existing audio
+  if (currentAudio) {
+    currentAudio.pause();
+    document.querySelectorAll('.play-btn').forEach(btn => btn.innerHTML = '▶ Play Preview');
+  }
 
-    const tagList = Array.isArray(tags) ? tags : [tags]
+  currentAudio = new Audio(url);
+  currentAudio.play().catch(err => console.error("Playback error:", err));
+  button.innerHTML = '⏸ Pause';
 
-    for (const tag of tagList) {
-      const name = tag.name.toLowerCase()
-      if (name.includes('hip-hop') || name.includes('rap') || name.includes('hip hop')) return 'hip-hop'
-      if (name.includes('rock') || name.includes('metal') || name.includes('punk')) return 'rock'
-      if (name.includes('r&b') || name.includes('soul') || name.includes('rhythm and blues')) return 'rnb'
-      if (name.includes('afrobeat') || name.includes('afro')) return 'afrobeats'
-      if (name.includes('pop')) return 'pop'
-    }
+  currentAudio.onended = () => {
+    button.innerHTML = '▶ Play Preview';
+    currentAudio = null;
+  };
+}
 
-    return 'other'
-  } catch (error) {
-    console.error('Genre fetch error:', error)
-    return 'other'
+// Ensure global access for inline onclick handlers
+window.playPreview = playPreview;
+window.closeModal = closeModal;
+window.playPreviewFromModal = playPreviewFromModal;
+
+function openModal(song) {
+  const modal = document.createElement('div');
+  modal.id = 'song-modal';
+  modal.className = 'modal';
+  modal.style.display = 'flex';
+  
+  const duration = song.duration ? `${Math.floor(song.duration / 60)}:${(song.duration % 60).toString().padStart(2, '0')}` : 'N/A';
+
+  modal.innerHTML = `
+    <div class="modal-content">
+      <span class="close-btn" onclick="closeModal()">&times;</span>
+      ${song.albumCover ? `<img src="${song.albumCover}" class="modal-cover">` : ''}
+      <h2>${song.title}</h2>
+      <p>${song.artist}</p>
+      <div class="modal-details">
+        <p>Album: ${song.albumName || 'N/A'}</p>
+        <p>Duration: ${duration}</p>
+      </div>
+      ${song.previewUrl ? `<button class="modal-play-btn" onclick="playPreviewFromModal('${song.previewUrl}')">▶ Play Preview</button>` : ''}
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+function closeModal() {
+  const modal = document.getElementById('song-modal');
+  if (modal) modal.remove();
+  if (currentAudio) {
+    currentAudio.pause();
+    currentAudio = null;
   }
 }
 
-function applyFilters(sortSelect, resultsGrid, emptyMsg) {
-  let filtered = [...allSongs]
+function playPreviewFromModal(url) {
+  const btn = document.querySelector('.modal-play-btn');
+  playPreview(url, btn);
+}
 
-  if (activeGenre !== 'all') {
-    filtered = filtered.filter(song =>
-      song.genre.toLowerCase() === activeGenre.toLowerCase()
-    )
+function updateCard(index, song, resultsGrid) {
+  const card = resultsGrid.children[index];
+  if (!card) return;
+  if (song.previewUrl && !card.querySelector('.play-btn')) {
+    const btn = document.createElement('button');
+    btn.className = 'play-btn';
+    btn.innerHTML = '▶ Play Preview';
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      playPreview(song.previewUrl, btn);
+    };
+    card.appendChild(btn);
   }
-
-  if (sortSelect && sortSelect.value === 'popularity') {
-    filtered = filtered.sort((a, b) => b.popularity - a.popularity)
-  }
-
-  renderCards(filtered, resultsGrid, emptyMsg)
 }
 
 function renderCards(songs, resultsGrid, emptyMsg) {
-  if (!resultsGrid) return
-
-  resultsGrid.innerHTML = ''
-
+  resultsGrid.innerHTML = '';
   if (songs.length === 0) {
-    if (emptyMsg) emptyMsg.classList.remove('hidden')
-    return
+    emptyMsg?.classList.remove('hidden');
+    return;
   }
-
-  if (emptyMsg) emptyMsg.classList.add('hidden')
-
+  emptyMsg?.classList.add('hidden');
   songs.forEach(song => {
-    const card = document.createElement('div')
-    card.className = 'card'
+    const card = document.createElement('div');
+    card.className = 'card';
     card.innerHTML = `
-      <div class="card__genre">${song.genre}</div>
       <h3 class="card__title">${song.title}</h3>
       <p class="card__artist">${song.artist}</p>
-      <span class="card__popularity">${song.popularity}</span>
-    `
-    resultsGrid.appendChild(card)
-  })
+      <span class="card__popularity">Hot: ${song.popularity}</span>
+    `;
+    card.onclick = () => openModal(song);
+    resultsGrid.appendChild(card);
+  });
 }
+
+function applyFilters(sortSelect, resultsGrid, emptyMsg) {
+  let filtered = [...allSongs];
+  if (activeGenre !== 'all') {
+    filtered = filtered.filter(s => s.genre === activeGenre);
+  }
+  if (sortSelect.value === 'popularity') {
+    filtered.sort((a, b) => b.popularity - a.popularity);
+  }
+  renderCards(filtered, resultsGrid, emptyMsg);
+}
+
 
