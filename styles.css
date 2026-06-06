@@ -635,6 +635,33 @@ body {
   object-fit: cover;
 }
 
+.rf-play {
+  margin-left: auto;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.2s;
+}
+
+.rf-play:hover {
+  transform: scale(1.15);
+  box-shadow: 0 0 12px rgba(255, 71, 87, 0.5);
+}
+
+.rf-play.is-playing {
+  background: var(--secondary);
+  box-shadow: 0 0 12px rgba(46, 213, 115, 0.5);
+}
+
 .rf-chip strong {
   font-size: 13px;
   color: #fff;

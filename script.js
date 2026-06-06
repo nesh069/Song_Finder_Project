@@ -250,9 +250,13 @@ function renderRecentFavSection() {
   if (hasRecent) {
     html += '<div class="rf-section"><h3 class="rf-title">🕐 Recently Viewed</h3><div class="rf-grid">'
     state.recentlyViewed.slice(0, 6).forEach(song => {
+      const previewBtn = song.previewUrl
+        ? `<button class="rf-play" onclick="event.stopPropagation();playPreviewFromChip('${encodeURIComponent(song.artist)}','${encodeURIComponent(song.title)}',this)" aria-label="Play ${song.title} preview">▶</button>`
+        : ''
       html += `<div class="rf-chip" onclick="openModalBySong('${encodeURIComponent(song.artist)}','${encodeURIComponent(song.title)}')">
         ${song.albumCover ? `<img src="${song.albumCover}" alt="" class="rf-img">` : ''}
         <div><strong>${escHtml(song.title)}</strong><br><small>${escHtml(song.artist)}</small></div>
+        ${previewBtn}
       </div>`
     })
     html += '</div></div>'
@@ -273,6 +277,17 @@ window.openModalBySong = function(artistEnc, titleEnc) {
                state.favorites.find(s => s.artist === artist && s.title === title) ||
                state.recentlyViewed.find(s => s.artist === artist && s.title === title)
   if (song) openModal(song)
+}
+
+window.playPreviewFromChip = function(artistEnc, titleEnc, btn) {
+  const artist = decodeURIComponent(artistEnc)
+  const title = decodeURIComponent(titleEnc)
+  const song = state.allSongs.find(s => s.artist === artist && s.title === title) ||
+               state.favorites.find(s => s.artist === artist && s.title === title) ||
+               state.recentlyViewed.find(s => s.artist === artist && s.title === title)
+  if (song && song.previewUrl) {
+    playPreview(song.previewUrl, btn)
+  }
 }
 
 // ===== Skeleton =====
