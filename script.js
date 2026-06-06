@@ -22,6 +22,7 @@ const state = {
   isFetching: false,
   currentQuery: '',
   usePopular: true,
+  activeTab: 'search',
   favorites: JSON.parse(localStorage.getItem('sf_fav') || '[]'),
   recentlyViewed: JSON.parse(localStorage.getItem('sf_recent') || '[]'),
 }
@@ -279,6 +280,65 @@ function renderRecentFavSection() {
   section.innerHTML = html
 }
 
+// ===== Tabs =====
+function switchTab(tab) {
+  state.activeTab = tab
+  document.querySelectorAll('.tab').forEach(t => {
+    t.classList.toggle('tab--active', t.dataset.tab === tab)
+    t.setAttribute('aria-selected', t.dataset.tab === tab)
+  })
+  const searchSection = document.querySelector('.search-section')
+  const loadMore = document.getElementById('load-more-container')
+
+  const recentFav = document.getElementById('recent-fav-section')
+
+  if (tab === 'history') {
+    searchSection.classList.add('hidden')
+    loadMore.classList.add('hidden')
+    if (recentFav) recentFav.classList.add('hidden')
+    renderHistoryTab()
+  } else {
+    searchSection.classList.remove('hidden')
+    if (recentFav) recentFav.classList.remove('hidden')
+    const emptyMsg = document.getElementById('empty-msg')
+    emptyMsg.textContent = 'No songs found. Try a different search.'
+    applyFilters()
+    if (state.allSongs.length >= 20) loadMore.classList.remove('hidden')
+  }
+}
+
+function renderHistoryTab() {
+  const grid = document.getElementById('results-grid')
+  const emptyMsg = document.getElementById('empty-msg')
+  grid.innerHTML = ''
+  emptyMsg.classList.add('hidden')
+
+  const hasFavs = state.favorites.length > 0
+  const hasRecent = state.recentlyViewed.length > 0
+
+  if (!hasFavs && !hasRecent) {
+    emptyMsg.textContent = 'No history yet. Start searching for songs!'
+    emptyMsg.classList.remove('hidden')
+    return
+  }
+
+  if (hasFavs) {
+    const header = document.createElement('div')
+    header.className = 'section-header'
+    header.innerHTML = '⭐ Favorites'
+    grid.appendChild(header)
+    state.favorites.forEach(song => grid.appendChild(createCardElement(song)))
+  }
+
+  if (hasRecent) {
+    const header = document.createElement('div')
+    header.className = 'section-header'
+    header.innerHTML = '🕐 Recently Viewed'
+    grid.appendChild(header)
+    state.recentlyViewed.slice(0, 10).forEach(song => grid.appendChild(createCardElement(song)))
+  }
+}
+
 function escHtml(str) {
   const d = document.createElement('div')
   d.textContent = str
@@ -318,6 +378,59 @@ function renderSkeletons(count) {
   }
 }
 
+// ===== Card Factory =====
+function createCardElement(song, index) {
+  const card = document.createElement('div')
+  card.className = 'card'
+  card.setAttribute('tabindex', '0')
+  card.setAttribute('role', 'button')
+  card.setAttribute('aria-label', `View details for ${song.title} by ${song.artist}`)
+
+  const coverHtml = song.albumCover
+    ? `<img src="${song.albumCover}" alt="${song.title} cover" class="card__img" loading="lazy">`
+    : `<div class="card__img card__img--placeholder">🎵</div>`
+
+  const genreHtml = song.genre && song.genre !== 'loading...' && song.genre !== 'unknown'
+    ? `<span class="card__genre">${song.genre}</span>`
+    : ''
+
+  const idxAttr = index !== undefined ? ` data-index="${index}"` : ''
+  const previewHtml = song.previewUrl
+    ? `<button class="play-btn"${idxAttr} aria-label="Play preview of ${song.title}">▶ Play Preview</button>`
+    : `<span class="no-preview">No preview</span>`
+
+  card.innerHTML = `
+    <div class="card__cover">
+      ${coverHtml}
+      <button class="card__fav" aria-label="${isFav(song) ? 'Remove from' : 'Add to'} favorites">${isFav(song) ? '❤' : '♡'}</button>
+    </div>
+    <div class="card__body">
+      ${genreHtml}
+      <h3 class="card__title">${escHtml(song.title)}</h3>
+      <p class="card__artist">${escHtml(song.artist)}</p>
+      <div class="card__footer">
+        <span class="card__popularity">${song.popularity}</span>
+        ${previewHtml}
+      </div>
+    </div>
+  `
+
+  card.querySelector('.play-btn')?.addEventListener('click', e => {
+    e.stopPropagation()
+    playPreview(song.previewUrl, e.currentTarget)
+  })
+
+  card.querySelector('.card__fav').addEventListener('click', e => {
+    e.stopPropagation()
+    toggleFavorite(song)
+  })
+
+  card.addEventListener('click', () => openModal(song))
+  card.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openModal(song) } })
+
+  return card
+}
+
 // ===== Render Cards =====
 function renderCards(songs) {
   const grid = document.getElementById('results-grid')
@@ -330,69 +443,7 @@ function renderCards(songs) {
   emptyMsg.classList.add('hidden')
 
   songs.forEach((song, i) => {
-    const card = document.createElement('div')
-    card.className = 'card'
-    card.setAttribute('tabindex', '0')
-    card.setAttribute('role', 'button')
-    card.setAttribute('aria-label', `View details for ${song.title} by ${song.artist}`)
-
-    const coverHtml = song.albumCover
-      ? `<img src="${song.albumCover}" alt="${song.title} cover" class="card__img" loading="lazy">`
-      : `<div class="card__img card__img--placeholder">🎵</div>`
-
-    const genreHtml = song.genre && song.genre !== 'loading...' && song.genre !== 'unknown'
-      ? `<span class="card__genre">${song.genre}</span>`
-      : ''
-
-    const previewHtml = song.previewUrl
-      ? `<button class="play-btn" data-index="${i}" aria-label="Play preview of ${song.title}">▶ Play Preview</button>`
-      : `<span class="no-preview">No preview</span>`
-
-    card.innerHTML = `
-      <div class="card__cover">
-        ${coverHtml}
-        <button class="card__fav" data-index="${i}" aria-label="${isFav(song) ? 'Remove from' : 'Add to'} favorites">${isFav(song) ? '❤' : '♡'}</button>
-      </div>
-      <div class="card__body">
-        ${genreHtml}
-        <h3 class="card__title">${escHtml(song.title)}</h3>
-        <p class="card__artist">${escHtml(song.artist)}</p>
-        <div class="card__footer">
-          <span class="card__popularity">${song.popularity}</span>
-          ${previewHtml}
-        </div>
-      </div>
-    `
-
-    card.querySelector('.play-btn')?.addEventListener('click', e => {
-      e.stopPropagation()
-      playPreview(song.previewUrl, e.currentTarget)
-    })
-
-    card.querySelector('.card__fav').addEventListener('click', e => {
-      e.stopPropagation()
-      toggleFavorite(song)
-    })
-
-    card.addEventListener('click', () => openModal(song))
-    card.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openModal(song) } })
-
-    grid.appendChild(card)
-  })
-
-  // Wire up play buttons for newly appended cards (for load-more)
-  document.querySelectorAll('.play-btn').forEach(btn => {
-    const idx = btn.dataset.index
-    if (idx && !btn._wired) {
-      btn._wired = true
-      const song = state.allSongs[parseInt(idx)]
-      if (song) {
-        btn.addEventListener('click', e => {
-          e.stopPropagation()
-          playPreview(song.previewUrl, btn)
-        })
-      }
-    }
+    grid.appendChild(createCardElement(song, i))
   })
 }
 
@@ -746,6 +797,11 @@ document.addEventListener('DOMContentLoaded', () => {
   sortSelect.addEventListener('change', () => applyFilters())
 
   document.getElementById('load-more-btn')?.addEventListener('click', loadMore)
+
+  // Tab switching
+  document.querySelectorAll('.tab').forEach(btn => {
+    btn.addEventListener('click', () => switchTab(btn.dataset.tab))
+  })
 
   // Keyboard shortcut: Enter from search input
   searchInput.addEventListener('keydown', e => {
