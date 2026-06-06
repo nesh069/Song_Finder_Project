@@ -72,13 +72,19 @@ async function fetchSongs(query, page, usePopular) {
   return tracksArray ? (Array.isArray(tracksArray) ? tracksArray : [tracksArray]) : []
 }
 
+async function searchDeezer(query) {
+  const url = `${CONFIG.PROXY}${encodeURIComponent(`${CONFIG.DEEZER_URL}search?q=${encodeURIComponent(query)}&limit=1`)}`
+  const res = await fetch(url)
+  const data = await res.json()
+  return data.data?.[0] || null
+}
+
 async function fetchDeezerData(artist, title) {
   try {
-    const url = `${CONFIG.PROXY}${encodeURIComponent(`${CONFIG.DEEZER_URL}search?q=${artist} ${title}&limit=1`)}`
-    const res = await fetch(url)
-    const data = await res.json()
-    if (data.data && data.data[0]) {
-      const t = data.data[0]
+    let t = await searchDeezer(`${artist} "${title}"`)
+    if (!t) t = await searchDeezer(title)
+    if (!t) t = await searchDeezer(artist)
+    if (t) {
       return {
         previewUrl: t.preview,
         albumCover: t.album?.cover_medium,
@@ -116,26 +122,27 @@ function cleanLyricsQuery(str) {
 }
 
 async function fetchLyrics(artist, title) {
-  const cleanArtist = cleanLyricsQuery(artist)
-  const cleanTitle = cleanLyricsQuery(title)
+  try {
+    const cleanArtist = cleanLyricsQuery(artist)
+    const cleanTitle = cleanLyricsQuery(title)
 
-  const tryApi = async (art, tit) => {
-    const url = `https://api.lyrics.ovh/v1/${encodeURIComponent(art)}/${encodeURIComponent(tit)}`
-    const res = await fetch(url)
-    if (!res.ok) return null
-    const data = await res.json()
-    if (data.error) return null
-    return data.lyrics || null
-  }
+    const tryApi = async (art, tit) => {
+      const url = `https://api.lyrics.ovh/v1/${encodeURIComponent(art)}/${encodeURIComponent(tit)}`
+      const res = await fetch(url)
+      if (!res.ok) return null
+      const data = await res.json()
+      if (data.error) return null
+      return data.lyrics || null
+    }
 
-  const lyrics = await tryApi(cleanArtist, cleanTitle)
-  if (lyrics) return lyrics
+    const lyrics = await tryApi(cleanArtist, cleanTitle)
+    if (lyrics) return lyrics
 
-  if (cleanArtist !== artist || cleanTitle !== title) {
-    const fallback = await tryApi(artist, title)
-    if (fallback) return fallback
-  }
-
+    if (cleanArtist !== artist || cleanTitle !== title) {
+      const fallback = await tryApi(artist, title)
+      if (fallback) return fallback
+    }
+  } catch (_) {}
   return null
 }
 
@@ -387,7 +394,7 @@ function createCardElement(song, index) {
   card.setAttribute('aria-label', `View details for ${song.title} by ${song.artist}`)
 
   const coverHtml = song.albumCover
-    ? `<img src="${song.albumCover}" alt="${song.title} cover" class="card__img" loading="lazy">`
+    ? `<img src="${song.albumCover}" alt="${song.title} cover" class="card__img" loading="lazy" onerror="this.onerror=null;this.outerHTML='<div class=\\'card__img card__img--placeholder\\'>🎵</div>'">`
     : `<div class="card__img card__img--placeholder">🎵</div>`
 
   const genreHtml = song.genre && song.genre !== 'loading...' && song.genre !== 'unknown'
@@ -512,7 +519,7 @@ function openModal(song) {
   modal.innerHTML = `
     <div class="modal-content">
       <button class="close-btn" aria-label="Close modal">&times;</button>
-      ${song.albumCover ? `<img src="${song.albumCover}" alt="${song.title} album art" class="modal-cover">` : ''}
+      ${song.albumCover ? `<img src="${song.albumCover}" alt="${song.title} album art" class="modal-cover" onerror="this.style.display='none'">` : ''}
       <span class="modal-genre">${genre}</span>
       <h2 class="modal-title">${escHtml(song.title)}</h2>
       <p class="modal-artist">${escHtml(song.artist)}</p>
