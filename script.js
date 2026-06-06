@@ -112,9 +112,11 @@ async function fetchByRegion(region) {
 
 async function fetchLyrics(artist, title) {
   try {
-    const res = await fetch(`https://api.lyrics.ovh/v1/${encodeURIComponent(artist)}/${encodeURIComponent(title)}`)
+    const url = `${CONFIG.PROXY}${encodeURIComponent(`https://api.lyrics.ovh/v1/${encodeURIComponent(artist)}/${encodeURIComponent(title)}`)}`
+    const res = await fetch(url)
     if (!res.ok) return null
     const data = await res.json()
+    if (data.error) return null
     return data.lyrics || null
   } catch (_) {
     return null
@@ -487,7 +489,7 @@ function openModal(song) {
     const container = modal.querySelector('.modal-lyrics__content')
     if (container) {
       if (lyrics) {
-        container.innerHTML = lyrics.replace(/\n/g, '<br>')
+        container.textContent = lyrics
       } else {
         container.innerHTML = '<em>No lyrics found for this song.</em>'
       }
