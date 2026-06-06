@@ -3,12 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Music Search</title>
+  <meta name="description" content="Search for songs by title, artist, genre or popularity. Discover music from around the world with 30-second previews."/>
+  <title>Music Search — Find Your Next Favourite Song</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
 
-  <nav class="navbar">
+  <nav class="navbar" role="banner" aria-label="Site header">
     <p>Welcome to Music Search</p>
   </nav>
 
@@ -17,59 +18,70 @@
     <p class="hero__subtitle">Search by title, artist, genre or popularity</p>
   </header>
 
-  <main class="container" id="main">
+  <main class="container" id="main" role="main">
+    <section class="search-section" aria-label="Search and filters">
+      <div class="search-bar">
+        <input
+          type="text"
+          id="search-input"
+          class="search-bar__input"
+          placeholder="Search songs or artists..."
+          aria-label="Search for songs or artists"
+        />
+        <button class="search-bar__btn" id="search-btn" aria-label="Start search">Search</button>
+      </div>
+
+      <div class="filters" id="filters" role="group" aria-label="Genre filters">
+        <button class="filter-btn active" data-genre="all" aria-pressed="true">All</button>
+        <button class="filter-btn" data-genre="pop" aria-pressed="false">Pop</button>
+        <button class="filter-btn" data-genre="hip-hop" aria-pressed="false">Hip-Hop</button>
+        <button class="filter-btn" data-genre="rock" aria-pressed="false">Rock</button>
+        <button class="filter-btn" data-genre="rnb" aria-pressed="false">R&amp;B</button>
+        <button class="filter-btn" data-genre="afrobeats" aria-pressed="false">Afrobeats</button>
+        <button class="filter-btn" data-genre="other" aria-pressed="false">Other</button>
+      </div>
+
+      <div class="region-bar">
+        <label for="region-select" class="region-bar__label">Discover by Region:</label>
+        <select id="region-select" class="region-bar__select" aria-label="Select a region">
+          <option value="">Global Popular</option>
+          <option value="african">African Music</option>
+          <option value="latin">Latin Music</option>
+          <option value="asian">Asian Music</option>
+          <option value="brazilian">Brazilian Music</option>
+          <option value="indian">Indian Music</option>
+          <option value="reggae">Reggae/Caribbean</option>
+        </select>
+      </div>
+
+      <div class="sort-bar">
+        <label for="sort-select" class="sort-bar__label">Sort by:</label>
+        <select id="sort-select" class="sort-bar__select" aria-label="Sort results">
+          <option value="default">Default</option>
+          <option value="popularity">Popularity</option>
+        </select>
+      </div>
+    </section>
+
+    <section class="recent-fav-section hidden" id="recent-fav-section" aria-label="Favorites and recently viewed"></section>
+
+    <section class="results" aria-label="Search results" role="region">
+      <div class="spinner hidden" id="spinner"></div>
+      <div class="results__grid" id="results-grid" role="list">
+      </div>
+      <p class="results__empty hidden" id="empty-msg" role="status">No songs found. Try a different search.</p>
+    </section>
+
+    <div class="load-more-container hidden" id="load-more-container">
+      <button class="load-more-btn" id="load-more-btn" aria-label="Load more songs">Load More ↓</button>
+    </div>
   </main>
-  <section class="search-section">
-    <div class="search-bar">
-      <input
-        type="text"
-        id="search-input"
-        class="search-bar__input"
-        placeholder="Search songs or artists..."
-      />
-      <button class="search-bar__btn" id="search-btn">Search</button>
-    </div>
 
-    <div class="filters" id="filters">
-      <button class="filter-btn active" data-genre="all">All</button>
-      <button class="filter-btn" data-genre="pop">Pop</button>
-      <button class="filter-btn" data-genre="hip-hop">Hip-Hop</button>
-      <button class="filter-btn" data-genre="rock">Rock</button>
-      <button class="filter-btn" data-genre="rnb">R&B</button>
-      <button class="filter-btn" data-genre="afrobeats">Afrobeats</button>
-      <button class="filter-btn" data-genre="other">Other</button>
-    </div>
-
-    <div class="region-bar">
-      <label for="region-select" class="region-bar__label">Discover by Region:</label>
-      <select id="region-select" class="region-bar__select">
-        <option value="">Global Popular</option>
-        <option value="african">African Music</option>
-        <option value="latin">Latin Music</option>
-        <option value="asian">Asian Music</option>
-        <option value="brazilian">Brazilian Music</option>
-        <option value="indian">Indian Music</option>
-        <option value="reggae">Reggae/Caribbean</option>
-      </select>
-    </div>
-
-    <div class="sort-bar">
-      <label for="sort-select" class="sort-bar__label">Sort by:</label>
-      <select id="sort-select" class="sort-bar__select">
-        <option value="default">Default</option>
-        <option value="popularity">Popularity</option>
-      </select>
-    </div>
-  </section>
-  <section class="results">
-    <div class="spinner hidden" id="spinner"></div>
-    <div class="results__grid" id="results-grid">
-    </div>
-    <p class="results__empty hidden" id="empty-msg">No songs found. Try a different search.</p>
-  </section>
-  <footer class="footer">
+  <footer class="footer" role="contentinfo">
     <p>&copy; 2024 Music Search. All rights reserved.</p>
   </footer>
+
+  <script src="utils.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
