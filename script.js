@@ -110,17 +110,32 @@ async function fetchByRegion(region) {
   }))
 }
 
+function cleanLyricsQuery(str) {
+  return str.replace(/\s*\(.*?\)\s*/g, '').replace(/\s*feat\.?\s*.*/i, '').replace(/\s*ft\.?\s*.*/i, '').trim()
+}
+
 async function fetchLyrics(artist, title) {
-  try {
-    const url = `${CONFIG.PROXY}${encodeURIComponent(`https://api.lyrics.ovh/v1/${encodeURIComponent(artist)}/${encodeURIComponent(title)}`)}`
+  const cleanArtist = cleanLyricsQuery(artist)
+  const cleanTitle = cleanLyricsQuery(title)
+
+  const tryApi = async (art, tit) => {
+    const url = `https://api.lyrics.ovh/v1/${encodeURIComponent(art)}/${encodeURIComponent(tit)}`
     const res = await fetch(url)
     if (!res.ok) return null
     const data = await res.json()
     if (data.error) return null
     return data.lyrics || null
-  } catch (_) {
-    return null
   }
+
+  const lyrics = await tryApi(cleanArtist, cleanTitle)
+  if (lyrics) return lyrics
+
+  if (cleanArtist !== artist || cleanTitle !== title) {
+    const fallback = await tryApi(artist, title)
+    if (fallback) return fallback
+  }
+
+  return null
 }
 
 // ===== Audio Player =====
